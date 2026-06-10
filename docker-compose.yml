@@ -44,6 +44,45 @@ services:
       - red-proyecto
     restart: unless-stopped
 
+  # ollama:
+  #   image: ollama-patched:0.24.0
+  #   container_name: ollama
+  #   restart: always
+  #   shm_size: "8gb"
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_storage:/root/.ollama
+  #     - ollama_cache:/root/.cache
+  #   environment:
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #     - OLLAMA_NUM_GPU=999
+  #     - OLLAMA_LOAD_IN_MEMORY=0
+  #     - OLLAMA_CONTEXT_LENGTH=4096
+  #     - OLLAMA_FLASH_ATTENTION=1
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [ gpu ]
+  #   networks:
+  #     - contabilidad-network
+
+
+  # qdrant:
+  #   image: qdrant/qdrant:latest
+  #   container_name: qdrant
+  #   restart: always
+  #   ports:
+  #     - "6333:6333"
+  #   volumes:
+  #     - qdrant_storage:/qdrant/storage
+  #   networks:
+  #     - contabilidad-network
+
 networks:
   red-proyecto:
     driver: bridge
