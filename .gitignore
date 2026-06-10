@@ -1,0 +1,8 @@
+.env
+/data
+/debug
+/miniaturas
+/procesadas
+/eval/__pycache__
+source/Sistema-de-catalogacion-de-imagenes/__pycache__
+source/Sistema-de-catalogacion-de-imagenes/api/__pycache__

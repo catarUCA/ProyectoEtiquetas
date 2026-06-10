@@ -1,0 +1,7 @@
+services:
+  frontend:
+    build: .
+    container_name: etiquetas-frontend
+    ports:
+      - "3300:80"
+    restart: unless-stopped
