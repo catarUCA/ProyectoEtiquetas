@@ -7,7 +7,19 @@ from eval.folder_sample import load_folder_sample
 from eval.utils import ensure_dirs
 
 FINALISTAS = ["gemma4:26b", "qwen3-vl:8b"]
-SEED = 7
+SEED = 10_06_2026
+
+
+def _es_fallo(desc):
+    if not desc or desc.strip() == "":
+        return True
+    if desc.strip() == "ERROR":
+        return True
+    if len(desc.strip()) < 200:
+        return True
+    if not desc.strip().startswith("Texto propio de la etiqueta:"):
+        return True
+    return False
 
 
 def generar():
@@ -27,11 +39,13 @@ def generar():
                     desc = fe.describe_image(r["path"], ocr_cache[r["id"]])
                 except Exception as e:
                     desc, fallo = f"ERROR: {e}", 1
+                if fallo == 0 and _es_fallo(desc):
+                    fallo = 1
                 dt = round(time.perf_counter() - t0, 2)
                 w.writerow({"id": r["id"], "grupo": r["grupo"], "modelo": modelo,
                             "descripcion": desc, "latencia_s": dt, "fallo": fallo})
                 rows.append((r["id"], r["grupo"], modelo, desc))
-                print(f"{modelo} {r['id']}: {dt}s")
+                print(f"{modelo} {r['id']}: {dt}s  fallo={fallo}")
     return rows
 
 
