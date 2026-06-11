@@ -6,7 +6,7 @@ from eval.utils import get_rs, ensure_dirs, iter_all_images
 GRUPOS = ["solo_texto", "dibujos_clasicos", "personajes_ilustres",
           "etiquetas_actuales", "animales"]
 POR_GRUPO = 10
-SEED = 20240601
+SEED = 10062026
 
 
 def plantilla_vacia(path="data/muestra_50.csv"):

@@ -72,6 +72,19 @@ def check_ollama(args):
     return args._ollama_ok
 
 
+def check_sample(args):
+    if not args._sample_ok:
+        try:
+            from eval.folder_sample import load_folder_sample
+            sample = load_folder_sample()
+            if sample:
+                args._sample = sample
+                args._sample_ok = True
+        except Exception:
+            return False
+    return args._sample_ok
+
+
 def safe_run(fn):
     try:
         fn()
@@ -182,7 +195,7 @@ def fase_2(args):
 
 def fase_3(args):
     hdr(3, "Predicciones de OCR -> data/ocr_pred.csv")
-    if not args._sample_ok:
+    if not check_sample(args):
         status(3, "SKIP", "Muestra no disponible")
         return
     if not check_ollama(args):
@@ -216,7 +229,7 @@ def fase_4(args):
 
 def fase_5(args):
     hdr(5, "Generacion de descripciones de finalistas [LENTO]")
-    if not args._sample_ok:
+    if not check_sample(args):
         status(5, "SKIP", "Muestra no disponible")
         return
     if not check_ollama(args):
@@ -341,7 +354,7 @@ def fase_11(args):
     if not check_qdrant(args) or not check_ollama(args):
         status(11, "SKIP", "Qdrant/Ollama no disponibles")
         return
-    if not args._sample_ok:
+    if not check_sample(args):
         status(11, "SKIP", "Muestra no disponible")
         return
     msg = "Generara 3 modos de descripcion y reindexara. Continuar?"
@@ -373,7 +386,7 @@ def fase_12(args):
 
 def fase_13(args):
     hdr(13, "Evaluacion del recorte")
-    if not args._sample_ok:
+    if not check_sample(args):
         status(13, "SKIP", "Muestra no disponible")
         return
     if not check_ollama(args):

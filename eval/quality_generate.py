@@ -7,7 +7,7 @@ from eval.folder_sample import load_folder_sample
 from eval.utils import ensure_dirs
 
 FINALISTAS = ["gemma4:26b", "qwen3-vl:8b"]
-SEED = 10_06_2026
+SEED = 7
 
 
 def _es_fallo(desc):

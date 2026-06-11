@@ -16,7 +16,7 @@ def build_croppers():
     rembg_u2 = RembgSegmenter("u2net")
     return [
         Cropper(rembg_u2, geom_quad4, "u2net+quad4"),
-        Cropper(RembgSegmenter("isnet-general-use"), geom_quad4, "isnet+quad4"),
+        # Cropper(RembgSegmenter("isnet-general-use"), geom_quad4, "isnet+quad4"),
         Cropper(GrabCutSegmenter(), geom_quad4, "grabcut+quad4"),
         Cropper(OtsuSegmenter(), geom_quad4, "otsu+quad4"),
         Cropper(rembg_u2, geom_minarearect, "u2net+minrect"),
