@@ -1,0 +1,4 @@
+query_id,query,type
+q01,etiqueta de Jerez,textual
+q02,animales,iconografica_simple
+q03,una mujer con flores,iconografica_relacional

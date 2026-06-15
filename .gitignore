@@ -5,8 +5,5 @@
 /eval/__pycache__
 source/Sistema-de-catalogacion-de-imagenes/__pycache__
 source/Sistema-de-catalogacion-de-imagenes/api/__pycache__
-data/queries.csv
-data/muestra_50.csv
-data/descripciones.csv
-data/calidad_scoring_blank.csv
-data/blind_key.csv
+manuales/
+etiquetasSoftwareOverleaf/

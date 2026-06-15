@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OCR_MODEL = os.getenv("OCR_MODEL", "glm-ocr:bf16")
-VISION_MODEL = os.getenv("VISION_MODEL", "qwen2.5vl:32b")
+VISION_MODEL = os.getenv("VISION_MODEL", "gemma4:26b")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 _ollama_client = None

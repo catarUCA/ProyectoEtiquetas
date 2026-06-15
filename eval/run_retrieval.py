@@ -15,6 +15,7 @@ K = 10
 QUERIES = "data/queries.csv"
 QRELS = "data/qrels.json"
 RANKINGS = "results/rankings.json"
+METRICS = "results/retrieval_metrics.json"
 
 
 def load_queries(path=QUERIES):
@@ -47,7 +48,8 @@ def evaluate(rankings, queries):
     glob = defaultdict(lambda: defaultdict(list))
     bytype = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     for qid, by_sys in rankings.items():
-        qrels = {int(i): int(g) for i, g in qrels_all.get(qid, {}).items()}
+        # Mantener IDs como strings para compatibilidad con IDs tipo "3_03"
+        qrels = {str(i): int(g) for i, g in qrels_all.get(qid, {}).items()}
         if not qrels:
             continue
         for sysname, ranked in by_sys.items():
@@ -80,6 +82,23 @@ def evaluate(rankings, queries):
                 continue
             diff, p = paired_permutation_test(glob[own]["ndcg"], m["ndcg"])
             print(f"  {own} vs {sysname}: dif={diff:+.3f}  p={p:.4f}")
+
+    def mean(vals):
+        return sum(vals) / len(vals) if vals else 0.0
+
+    output = {}
+    metric_keys = ["ndcg", "map", "p", "mrr"]
+    for sysname, m in glob.items():
+        output[sysname] = {
+            "aggregate": {x: mean(m[x]) for x in metric_keys},
+        }
+    for qtyp, d in bytype.items():
+        for sysname, m in d.items():
+            output[sysname][qtyp] = {x: mean(m[x]) for x in metric_keys}
+    ensure_dirs()
+    with open(METRICS, "w") as f:
+        json.dump(output, f, indent=2)
+    print(f"\n[ok] Metricas guardadas en {METRICS}")
 
 
 def main():

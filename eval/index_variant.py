@@ -105,7 +105,7 @@ class VariantSystem(BaseSystem):
         for h in hits:
             iid = h.payload["img_id"]
             if iid not in seen or h.score > seen[iid].score:
-                seen[iid] = SearchHit(int(iid), h.payload["path"], float(h.score), 0)
+                seen[iid] = SearchHit(iid, h.payload["path"], float(h.score), 0)
         out = sorted(seen.values(), key=lambda x: -x.score)[:k]
         for r, hit in enumerate(out):
             hit.rank = r + 1

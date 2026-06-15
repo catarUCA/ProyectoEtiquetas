@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OCR_MODEL = os.getenv("OCR_MODEL", "glm-ocr:bf16")
-VISION_MODEL = os.getenv("VISION_MODEL", "qwen2.5vl:32b")
+VISION_MODEL = os.getenv("VISION_MODEL", "gemma4:26b")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
 _ollama_client = None
@@ -339,22 +339,27 @@ Respuesta inválida:
 
     # Ollama via raw HTTP to pass think:False at top level
     import requests as _requests
-    r = _requests.post(f"{OLLAMA_HOST}/api/generate", json={
+    import time as _time
+    body = {
         "model": VISION_MODEL,
         "prompt": prompt,
         "images": [img_base64],
         "think": False,
         "stream": False,
         "options": {
-        "num_batch": 64,
-        "temperature": 0,
-        "top_p": 0.5,
-        "top_k": 20,
-        "repeat_penalty": 1.05,
-        "num_predict": 2048,
-    },
-    }, timeout=300)
-
+            "num_batch": 64,
+            "temperature": 0,
+            "top_p": 0.5,
+            "top_k": 20,
+            "repeat_penalty": 1.05,
+            "num_predict": 2048,
+        },
+    }
+    for attempt in range(6):
+        r = _requests.post(f"{OLLAMA_HOST}/api/generate", json=body, timeout=600)
+        if r.status_code != 500:
+            break
+        _time.sleep(15.0 * (attempt + 1))
     r.raise_for_status()
     data = r.json()
     result = data.get("response", "")
