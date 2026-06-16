@@ -35,6 +35,8 @@ class Token(BaseModel):
 
 def verify_password(password: str, password_hash: str) -> bool:
     try:
+        if "$2y$" in password_hash:
+            password_hash = password_hash.replace("$2y$", "$2b$")
         if pwd_context.verify(password, password_hash):
             return True
     except Exception:
