@@ -7,3 +7,5 @@ source/Sistema-de-catalogacion-de-imagenes/__pycache__
 source/Sistema-de-catalogacion-de-imagenes/api/__pycache__
 manuales/
 etiquetasSoftwareOverleaf/
+.opencode/
+opencode.json
