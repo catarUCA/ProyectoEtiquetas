@@ -1,9 +1,33 @@
 #!/usr/bin/env python3
 """
 migrate_sparse.py -- Reconfigura únicamente la colección de textos 
-sin perder las imágenes ya indexadas ni afectar a otras colecciones de Qdrant.
+añadiendo dinámicamente la carpeta 'source' al path de Python.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# =====================================================================
+# INYECCIÓN DE RUTAS (Truco para que Windows encuentre tu carpeta source)
+# =====================================================================
+_HERE = Path(__file__).resolve().parent
+# Si estás dentro de 'eval', la raíz es el padre. Si estás en la raíz, es _HERE.
+_ROOT = _HERE.parent if _HERE.name == "eval" else _HERE
+
+# Buscamos la carpeta 'source' (o 'src') y la metemos en el motor de búsqueda de Python
+_SOURCE_DIR = _ROOT / "source"
+if not _SOURCE_DIR.exists():
+    _SOURCE_DIR = _ROOT / "src"  # Por si acaso
+
+if _SOURCE_DIR.exists():
+    if str(_SOURCE_DIR) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_DIR))
+    logging_path_msg = f"Carpeta de código detectada en: {_SOURCE_DIR}"
+else:
+    logging_path_msg = "No se encontró la carpeta 'source' o 'src'. Verifica la estructura."
+
+# Ahora sí, importamos el resto de librerías de forma segura
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from retrieval_system import ImageRetrievalSystem
@@ -11,23 +35,22 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Migrador")
+if "No se encontró" in logging_path_msg:
+    logger.error(logging_path_msg)
+else:
+    logger.info(logging_path_msg)
 
 def filtrar_y_recrear():
-    # 1. Inicializar el sistema SIN el reset global (reset_index=False obligatorio)
+    # Inicializar el sistema híbrido
     system = ImageRetrievalSystem(reset_index=False)
-    
-    # El nombre específico de tu colección de textos
     target_collection = system.text_collection 
     
     logger.info(f"Destruyendo EXCLUSIVAMENTE la colección: '{target_collection}'...")
-    # Esto SOLO borra esta colección. Las demás colecciones de tu Qdrant quedan intactas.
     system.client.delete_collection(collection_name=target_collection)
     
     logger.info(f"Recreando '{target_collection}' con la nueva estructura híbrida...")
-    # Al no existir, ensure_collection la creará con la configuración Dense + Sparse
     system.ensure_collection()
     
-    # 2. Recuperar las descripciones ya existentes de la colección "imagenes"
     logger.info("Recuperando descripciones de la colección de imágenes para repoblar...")
     puntos_imagenes, _ = system.client.scroll(
         collection_name=system.image_collection,
@@ -37,12 +60,10 @@ def filtrar_y_recrear():
     )
     
     if not puntos_imagenes:
-        logger.info("La colección de imágenes estaba vacía. Estructura actualizada y lista para nuevos uploads.")
+        logger.info("La colección de imágenes estaba vacía. Estructura híbrida lista para usar.")
         return
 
     logger.info(f"Generando vectores dispersos para {len(puntos_imagenes)} imágenes existentes...")
-    
-    # Resetear el contador de IDs de texto para la nueva colección limpia
     system.last_text_id = 0
     
     for punto in puntos_imagenes:
@@ -50,14 +71,12 @@ def filtrar_y_recrear():
         descripcion = punto.payload["image_description"]
         path = punto.payload["path"]
         
-        # Fragmentar el texto exactamente igual que en el pipeline original
         segments = system.split_description(descripcion)
         all_texts = [" ".join(segments)] + segments
         
         text_points = []
         for text in all_texts:
             system.last_text_id += 1
-            # Extraer el par híbrido (Denso + Disperso) usando el nuevo BGE-M3 local
             dense_vec, sparse_vec = system._embed_text_hybrid(text)
             
             point = PointStruct(
@@ -81,7 +100,7 @@ def filtrar_y_recrear():
                 points=text_points
             )
             
-    logger.info(f"¡Migración completada con éxito! Se han regenerado {system.last_text_id} segmentos híbridos.")
+    logger.info(f"¡Migración completada! Se han regenerado {system.last_text_id} segmentos híbridos.")
 
 if __name__ == "__main__":
     filtrar_y_recrear()
