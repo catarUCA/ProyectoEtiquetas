@@ -3,7 +3,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    VectorParams, SparseVectorParams, SparseVector, Prefetch, Fusion, Distance, 
+    VectorParams, SparseVectorParams, SparseVector, Distance,
     PointStruct, PointIdsList, OrderBy, Direction, Filter, FieldCondition, 
     MatchAny, MatchValue, FilterSelector
 )
@@ -62,6 +62,50 @@ def _get_bge():
                 _bge_model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=False)
                 logger.info("BGE-M3 loaded successfully")
     return _bge_model
+
+
+def _rank_unique_labels(hits):
+    """Collapse segment hits to a deterministic label ranking.
+
+    Only the best-ranked segment represents each image in a retrieval branch.
+    RRF must operate on this label ranking, not on the raw segment ranking.
+    """
+    best_by_image = {}
+    for segment_rank, hit in enumerate(hits, start=1):
+        img_id = hit.payload["img_id"]
+        if img_id not in best_by_image:
+            best_by_image[img_id] = {
+                "img_id": img_id,
+                "segment_rank": segment_rank,
+                "path": hit.payload["path"],
+                "text": hit.payload["segment_text"],
+            }
+
+    ordered = sorted(
+        best_by_image.values(),
+        key=lambda item: (item["segment_rank"], str(item["img_id"])),
+    )
+    return [dict(item, label_rank=rank) for rank, item in enumerate(ordered, start=1)]
+
+
+def _fuse_label_rankings(dense_hits, sparse_hits, rrf_k: int = 60):
+    """Fuse dense and sparse label rankings with at most one vote per branch."""
+    fused = {}
+    for hits in (dense_hits, sparse_hits):
+        for item in _rank_unique_labels(hits):
+            img_id = item["img_id"]
+            if img_id not in fused:
+                fused[img_id] = {
+                    "path": item["path"],
+                    "id": str(img_id),
+                    "rrf_score": 0.0,
+                    "text": item["text"],
+                }
+            fused[img_id]["rrf_score"] += 1.0 / (rrf_k + item["label_rank"])
+
+    for item in fused.values():
+        item["score"] = item["rrf_score"]
+    return sorted(fused.values(), key=lambda item: (-item["score"], item["id"]))
 
 
 class ImageRetrievalSystem:
@@ -374,40 +418,8 @@ class ImageRetrievalSystem:
             limit=1000
         ).points
 
-        # 3. Algoritmo Reciprocal Rank Fusion (RRF)
-        rrf_scores = {}
-        constant_k = 60  # Constante estándar del algoritmo RRF
-        
-        # Procesar posiciones del ranking denso (1-indexed)
-        for rank, hit in enumerate(dense_hits, start=1):
-            img_id = hit.payload["img_id"]
-            if img_id not in rrf_scores:
-                rrf_scores[img_id] = {
-                    "path":  hit.payload["path"],
-                    "id":    str(img_id),
-                    "rrf_score": 0.0,
-                    "text":  hit.payload["segment_text"]
-                }
-            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
-
-        # Procesar posiciones del ranking disperso/léxico
-        for rank, hit in enumerate(sparse_hits, start=1):
-            img_id = hit.payload["img_id"]
-            if img_id not in rrf_scores:
-                rrf_scores[img_id] = {
-                    "path":  hit.payload["path"],
-                    "id":    str(img_id),
-                    "rrf_score": 0.0,
-                    "text":  hit.payload["segment_text"]
-                }
-            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
-
-        # Mapear rrf_score al campo de retorno esperado 'score'
-        for img_id in rrf_scores:
-            rrf_scores[img_id]["score"] = rrf_scores[img_id]["rrf_score"]
-
-        # Ordenar los resultados combinados de mayor a menor puntuación RRF
-        items = sorted(rrf_scores.values(), key=lambda x: x["score"], reverse=True)
+        # Agregar segmentos por etiqueta antes de aplicar RRF.
+        items = _fuse_label_rankings(dense_hits, sparse_hits, rrf_k=60)
         logger.info(f"Found {len(items)} hybrid text matches via client RRF")
         return items
 
@@ -460,35 +472,7 @@ class ImageRetrievalSystem:
             limit=1000
         ).points
 
-        rrf_scores = {}
-        constant_k = 60
-        
-        for rank, hit in enumerate(dense_hits, start=1):
-            img_id = hit.payload["img_id"]
-            if img_id not in rrf_scores:
-                rrf_scores[img_id] = {
-                    "path":  hit.payload["path"],
-                    "id":    str(img_id),
-                    "rrf_score": 0.0,
-                    "text":  hit.payload["segment_text"]
-                }
-            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
-
-        for rank, hit in enumerate(sparse_hits, start=1):
-            img_id = hit.payload["img_id"]
-            if img_id not in rrf_scores:
-                rrf_scores[img_id] = {
-                    "path":  hit.payload["path"],
-                    "id":    str(img_id),
-                    "rrf_score": 0.0,
-                    "text":  hit.payload["segment_text"]
-                }
-            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
-
-        for img_id in rrf_scores:
-            rrf_scores[img_id]["score"] = rrf_scores[img_id]["rrf_score"]
-
-        ranked = sorted(rrf_scores.values(), key=lambda x: x["score"], reverse=True)
+        ranked = _fuse_label_rankings(dense_hits, sparse_hits, rrf_k=60)
         logger.info(f"Found {len(ranked)} tag+hybrid matches via client RRF")
         return ranked
 
