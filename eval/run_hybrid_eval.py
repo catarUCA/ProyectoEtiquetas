@@ -21,9 +21,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("HybridEval")
 
 def print_header(title):
-    print(f"\n{'='*70}")
+    print('=' *70)
     print(f"  🚀 {title}")
-    print(f"{='='*70}")
+    print('='*70)
 
 def main():
     print_header("EVALUACIÓN DEL NUEVO SISTEMA HÍBRIDO (BGE-M3 + QDRANT RRF)")
@@ -120,9 +120,9 @@ def main():
 
     # 5. Calcular promedios (Macro-Averages) y pintar la tabla comparativa
     print("\n📊 TABLA DE RENDIMIENTO DEL NUEVO SISTEMA HÍBRIDO:")
-    print(f"{'-'*75}")
+    print('-' *75)
     print(f"{'Configuración / Tipo Query':<30} | {'nDCG@10':<8} | {'MAP':<6} | {'P@5':<5} | {'MRR':<5}")
-    print(f"{'-'*75}")
+    print('-'*75)
 
     global_metrics = {"ndcg10": [], "map": [], "p5": [], "p10": [], "mrr": []}
 
@@ -139,20 +139,20 @@ def main():
         global_metrics["p5"].append(avg_p5)
         global_metrics["mrr"].append(avg_mrr)
 
-    print(f"{'-'*75}")
+    print('-' * 75)
     agg_ndcg = sum(global_metrics["ndcg10"]) / len(global_metrics["ndcg10"])
     agg_map = sum(global_metrics["map"]) / len(global_metrics["map"])
     agg_p5 = sum(global_metrics["p5"]) / len(global_metrics["p5"])
     agg_mrr = sum(global_metrics["mrr"]) / len(global_metrics["mrr"])
     
     print(f"✨ AGREGADO HÍBRIDO (MÉTRICA NUEVA) | {agg_ndcg:.3f}   | {agg_map:.3f} | {agg_p5:.3f} | {agg_mrr:.3f}")
-    print(f"{'-'*75}")
+    print( '-' * 75)
     
     print("\n💡 Comparativa con las métricas del artículo científico anterior:")
     print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495")
     print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
     print(f"\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
-    print(f"{='='*70}\n")
+    print('=' * 70)
 
 if __name__ == "__main__":
     main()
