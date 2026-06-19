@@ -1,6 +1,6 @@
 # WineEyes evaluation audit
 
-Generated: `2026-06-19T11:24:35.490210+00:00`
+Generated: `2026-06-19T11:32:31.166940+00:00`
 Overall status: **PASS**
 
 | Check | Status | Critical | Detail |
@@ -20,6 +20,11 @@ Overall status: **PASS**
 | `qrels_query_coverage` | pass | True | missing=[] extra=[] |
 | `qrels_ids_known` | pass | True | unknown=[] |
 | `queries_have_qrels` | pass | True | missing=[] |
-| `qrels_format` | pass | True | binary=True path=data/qrels.json |
-| `qdrant_available` | skip | False | preflight only: qdrant-client is required for index and retrieval commands |
+| `qrels_format` | pass | True | binary=True path=data\qrels.json |
+| `qdrant_available` | pass | True | connected |
+| `collection_solo_ocr` | skip | False | not built yet: wineeyes_eval_solo_ocr_dense |
+| `collection_solo_vlm` | skip | False | not built yet: wineeyes_eval_solo_vlm_dense |
+| `collection_ocr_vlm` | skip | False | not built yet: wineeyes_eval_ocr_vlm_dense |
+| `collection_ocr_vlm_hybrid_full` | skip | False | not built yet: wineeyes_eval_ocr_vlm_hybrid_full |
+| `collection_ocr_vlm_hybrid_segmented` | skip | False | not built yet: wineeyes_eval_ocr_vlm_hybrid_segmented |
 | `rankings_full_exists` | skip | False | not generated yet |

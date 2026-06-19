@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19T11:24:35.490210+00:00",
+  "generated_at": "2026-06-19T11:32:31.166940+00:00",
   "strict": false,
   "status": "pass",
   "checks": [
@@ -97,13 +97,43 @@
       "name": "qrels_format",
       "status": "pass",
       "critical": true,
-      "detail": "binary=True path=data/qrels.json"
+      "detail": "binary=True path=data\\qrels.json"
     },
     {
       "name": "qdrant_available",
+      "status": "pass",
+      "critical": true,
+      "detail": "connected"
+    },
+    {
+      "name": "collection_solo_ocr",
       "status": "skip",
       "critical": false,
-      "detail": "preflight only: qdrant-client is required for index and retrieval commands"
+      "detail": "not built yet: wineeyes_eval_solo_ocr_dense"
+    },
+    {
+      "name": "collection_solo_vlm",
+      "status": "skip",
+      "critical": false,
+      "detail": "not built yet: wineeyes_eval_solo_vlm_dense"
+    },
+    {
+      "name": "collection_ocr_vlm",
+      "status": "skip",
+      "critical": false,
+      "detail": "not built yet: wineeyes_eval_ocr_vlm_dense"
+    },
+    {
+      "name": "collection_ocr_vlm_hybrid_full",
+      "status": "skip",
+      "critical": false,
+      "detail": "not built yet: wineeyes_eval_ocr_vlm_hybrid_full"
+    },
+    {
+      "name": "collection_ocr_vlm_hybrid_segmented",
+      "status": "skip",
+      "critical": false,
+      "detail": "not built yet: wineeyes_eval_ocr_vlm_hybrid_segmented"
     },
     {
       "name": "rankings_full_exists",
