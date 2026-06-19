@@ -33,6 +33,8 @@ RUN_LOG_PATH = RESULTS_DIR / "run_log.txt"
 
 BGE_MODEL = os.getenv("BGE_MODEL", "BAAI/bge-m3")
 BGE_REVISION = os.getenv("BGE_REVISION") or None
+BGE_DEVICE = os.getenv("BGE_DEVICE") or None
+BGE_BATCH_SIZE = max(1, int(os.getenv("BGE_BATCH_SIZE", "8")))
 DENSE_DIM = 1024
 DENSE_VECTOR_NAME = "semantico"
 SPARSE_VECTOR_NAME = "lexico"

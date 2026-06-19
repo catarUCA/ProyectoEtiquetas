@@ -111,6 +111,8 @@ def build_manifest(embedder=None) -> dict[str, Any]:
             "requested_revision": BGE_REVISION,
             "resolved_revision": resolved_model_revision(embedder),
             "use_fp16": False,
+            "device": embedder.resolved_device() if embedder is not None else None,
+            "batch_size": getattr(embedder, "batch_size", None),
         },
         "qdrant": {
             "server_version": qdrant_server_version(),

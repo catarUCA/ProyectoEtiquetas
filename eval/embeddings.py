@@ -8,7 +8,7 @@ from typing import Iterable
 
 import numpy as np
 
-from eval.config import BGE_MODEL, BGE_REVISION
+from eval.config import BGE_BATCH_SIZE, BGE_DEVICE, BGE_MODEL, BGE_REVISION
 
 
 @dataclass(frozen=True)
@@ -19,11 +19,28 @@ class HybridEmbedding:
 
 
 class BGEEmbedder:
-    def __init__(self, model_name: str = BGE_MODEL, revision: str | None = BGE_REVISION):
+    def __init__(
+        self,
+        model_name: str = BGE_MODEL,
+        revision: str | None = BGE_REVISION,
+        device: str | None = BGE_DEVICE,
+        batch_size: int = BGE_BATCH_SIZE,
+    ):
         self.model_name = model_name
         self.revision = revision
+        self.device = device
+        self.batch_size = batch_size
         self._model = None
         self._lock = threading.Lock()
+
+    def resolved_device(self) -> str:
+        if self.device:
+            return self.device
+        try:
+            import torch
+        except ImportError as exc:
+            raise RuntimeError("PyTorch is required by FlagEmbedding") from exc
+        return "cuda:0" if torch.cuda.is_available() else "cpu"
 
     def load(self):
         if self._model is None:
@@ -35,7 +52,13 @@ class BGEEmbedder:
                         raise RuntimeError(
                             "FlagEmbedding is required. Install project evaluation dependencies first."
                         ) from exc
-                    self._model = BGEM3FlagModel(self.model_name, use_fp16=False)
+                    device = self.resolved_device()
+                    self._model = BGEM3FlagModel(
+                        self.model_name,
+                        use_fp16=False,
+                        devices=device,
+                        batch_size=self.batch_size,
+                    )
         return self._model
 
     @staticmethod
@@ -57,6 +80,7 @@ class BGEEmbedder:
             return []
         output = self.load().encode(
             values,
+            batch_size=self.batch_size,
             return_dense=dense,
             return_sparse=sparse,
             return_colbert_vecs=False,

@@ -25,10 +25,25 @@ def main(argv=None) -> int:
     try:
         client = get_qdrant_client()
         embedder = BGEEmbedder()
-        reports = [
-            index_system(client, embedder, system_name, reset=args.reset, batch_size=args.batch_size)
-            for system_name in SYSTEM_SPECS
-        ]
+        print(
+            f"Loading {embedder.model_name} once on {embedder.resolved_device()} "
+            f"(FlagEmbedding batch_size={embedder.batch_size}, use_fp16=False)...",
+            flush=True,
+        )
+        embedder.load()
+        print("BGE-M3 loaded. Building evaluation collections...", flush=True)
+        reports = []
+        for position, system_name in enumerate(SYSTEM_SPECS, start=1):
+            print(f"[{position}/{len(SYSTEM_SPECS)}] {system_name}", flush=True)
+            report = index_system(
+                client,
+                embedder,
+                system_name,
+                reset=args.reset,
+                batch_size=args.batch_size,
+            )
+            reports.append(report)
+            print(f"  {report}", flush=True)
         write_manifest(embedder, {"index_build": reports})
     except Exception as exc:
         append_run_log(f"build_eval_indices FAILED: {type(exc).__name__}: {exc}")
@@ -42,4 +57,3 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
