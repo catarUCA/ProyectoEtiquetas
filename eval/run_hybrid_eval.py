@@ -107,8 +107,7 @@ def main():
     
     results_by_type = {}
     
-    # Auto-detectar dinámicamente si vuestro lote de evaluación empieza en el ID 51 o en el ID 1
-    # basándonos en una inspección rápida de los primeros registros de texto de la base de datos.
+    # Auto-detectar dinámicamente el bloque base de indexación
     sample_points, _ = rs.client.scroll(collection_name=rs.text_collection, limit=10)
     detected_base = 51
     if sample_points:
@@ -162,9 +161,9 @@ def main():
 
     # 5. Calcular promedios (Macro-Averages) y pintar la tabla comparativa
     print("\n📊 TABLA DE RENDIMIENTO DEL NUEVO SISTEMA HÍBRIDO:")
-    print('-' * 75)
-    print(f"{'Configuración / Tipo Query':<30} | {'nDCG@10':<8} | {'MAP':<6} | {'P@5':<5} | {'MRR':<5}")
-    print('-' * 75)
+    print('-' * 85)
+    print(f"{'Configuración / Tipo Query':<30} | {'nDCG@10':<8} | {'MAP':<6} | {'P@5':<5} | {'P@10':<6} | {'MRR':<5}")
+    print('-' * 85)
 
     global_metrics = {"ndcg10": [], "map": [], "p5": [], "p10": [], "mrr": []}
 
@@ -174,30 +173,33 @@ def main():
         avg_ndcg = sum(m["ndcg10"] for m in metrics_list) / len(metrics_list)
         avg_map = sum(m["map"] for m in metrics_list) / len(metrics_list)
         avg_p5 = sum(m["p5"] for m in metrics_list) / len(metrics_list)
+        avg_p10 = sum(m["p10"] for m in metrics_list) / len(metrics_list)
         avg_mrr = sum(m["mrr"] for m in metrics_list) / len(metrics_list)
         
-        print(f"ocr_vlm_hybrid ({q_type:<12})     | {avg_ndcg:.3f}   | {avg_map:.3f} | {avg_p5:.3f} | {avg_mrr:.3f}")
+        print(f"ocr_vlm_hybrid ({q_type:<12})     | {avg_ndcg:.3f}   | {avg_map:.3f} | {avg_p5:.3f} | {avg_p10:.3f} | {avg_mrr:.3f}")
         
         global_metrics["ndcg10"].append(avg_ndcg)
         global_metrics["map"].append(avg_map)
         global_metrics["p5"].append(avg_p5)
+        global_metrics["p10"].append(avg_p10)
         global_metrics["mrr"].append(avg_mrr)
 
-    print('-' * 75)
+    print('-' * 85)
     if global_metrics["ndcg10"]:
         agg_ndcg = sum(global_metrics["ndcg10"]) / len(global_metrics["ndcg10"])
         agg_map = sum(global_metrics["map"]) / len(global_metrics["map"])
         agg_p5 = sum(global_metrics["p5"]) / len(global_metrics["p5"])
+        agg_p10 = sum(global_metrics["p10"]) / len(global_metrics["p10"])
         agg_mrr = sum(global_metrics["mrr"]) / len(global_metrics["mrr"])
     else:
-        agg_ndcg = agg_map = agg_p5 = agg_mrr = 0.0
+        agg_ndcg = agg_map = agg_p5 = agg_p10 = agg_mrr = 0.0
         
-    print(f"✨ AGREGADO HÍBRIDO (MÉTRICA NUEVA) | {agg_ndcg:.3f}   | {agg_map:.3f} | {agg_p5:.3f} | {agg_mrr:.3f}")
-    print('-' * 75)
+    print(f"✨ AGREGADO HÍBRIDO (MÉTRICA NUEVA) | {agg_ndcg:.3f}   | {agg_map:.3f} | {agg_p5:.3f} | {agg_p10:.3f} | {agg_mrr:.3f}")
+    print('-' * 85)
     
     print("\n💡 Comparativa con las métricas del artículo científico anterior:")
-    print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495")
-    print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
+    print("  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495")
+    print("  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
     print("\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
     print('=' * 70 + "\n")
 
