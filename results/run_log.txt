@@ -18,3 +18,11 @@
 2026-06-19T11:47:31.815156+00:00 build_eval_indices completed
 2026-06-19T11:51:05.168523+00:00 run_retrieval started
 2026-06-19T11:51:13.828192+00:00 run_retrieval FAILED: RuntimeError: ocr_vlm_hybrid_full:sparse returned 0 unique labels; expected 50
+2026-06-19T11:54:50.686155+00:00 run_retrieval started
+2026-06-19T11:55:06.345000+00:00 run_retrieval completed output=C:\Users\User\Documents\ProyectoEtiquetas\results\rankings_full.json
+2026-06-19T11:55:19.438971+00:00 evaluate_rankings started
+2026-06-19T11:55:19.446107+00:00 evaluate_rankings completed
+2026-06-19T11:55:44.215071+00:00 benchmark_hybrid system=ocr_vlm_hybrid_segmented repeats=20 warmup=2
+2026-06-19T11:56:57.594728+00:00 benchmark_hybrid completed
+2026-06-19T11:57:10.892376+00:00 audit_inputs strict=True
+2026-06-19T11:57:11.753418+00:00 audit_inputs status=pass checks=355 failures=0
