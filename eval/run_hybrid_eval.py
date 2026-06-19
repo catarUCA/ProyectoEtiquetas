@@ -16,10 +16,9 @@ import logging
 _HERE = Path(__file__).resolve().parent     # C:\Users\User\Documents\ProyectoEtiquetas\eval
 _ROOT = _HERE.parent                        # C:\Users\User\Documents\ProyectoEtiquetas
 
-# Usamos el operador '/' para concatenar carpetas de forma nativa
+# Ruta exacta hacia el archivo de recuperacion
 _TARGET_DIR = _ROOT / "source" / "Sistema-de-catalogacion-de-imagenes"
 
-# Inyectamos la ruta en el motor de búsqueda de Python convirtiéndola a texto plano
 if _TARGET_DIR.exists():
     if str(_TARGET_DIR) not in sys.path:
         sys.path.insert(0, str(_TARGET_DIR))
@@ -29,15 +28,29 @@ else:
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 # =====================================================================
-# =====================================================================
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("HybridEval")
+
 
 def print_header(title):
     print(f"\n{'='*70}")
     print(f"  🚀 {title}")
     print('=' * 70)
+
+
+def translate_internal_id(internal_id: int, base_id: int = 51) -> int:
+    """
+    Traduce los IDs secuenciales de producción de Qdrant (ej. 51-100)
+    al formato de identificadores de la muestra de evaluación (101-510).
+    """
+    offset = internal_id - base_id
+    if 0 <= offset < 50:
+        group = (offset // 10) + 1
+        index = (offset % 10) + 1
+        return group * 100 + index
+    return None
+
 
 def main():
     print_header("EVALUACIÓN DEL NUEVO SISTEMA HÍBRIDO (BGE-M3 + QDRANT RRF)")
@@ -48,23 +61,24 @@ def main():
         from eval.metrics import ndcg_at_k, average_precision, precision_at_k, mrr
         logger.info("Módulos del sistema y métricas cargados con éxito.")
     except ImportError as e:
-        logger.error(f"Error al importar dependencias. Asegúrate de tener instalado FlagEmbedding y tus módulos locales: {e}")
+        logger.error(f"Error al importar dependencias: {e}")
         sys.exit(1)
 
     # 2. Conectar al sistema de recuperación
     try:
         rs = ImageRetrievalSystem(reset_index=False)
-        logger.info(f"Conectado a Qdrant. Segmentos de texto indexados en la BD: {rs.client.count(rs.text_collection).count}")
+        total_segmentos = rs.client.count(rs.text_collection).count
+        logger.info(f"Conectado a Qdrant. Segmentos de texto indexados en la BD: {total_segmentos}")
     except Exception as e:
         logger.error(f"No se pudo conectar a Qdrant o inicializar BGE-M3: {e}")
         sys.exit(1)
 
-    # 3. Cargar consultas y juicios de relevancia
-    queries_path = Path("data/queries.csv")
-    qrels_path = Path("data/qrels.json")
+    # 3. Cargar consultas y juicios de relevancia apuntando siempre al ROOT
+    queries_path = _ROOT / "data" / "queries.csv"
+    qrels_path = _ROOT / "data" / "qrels.json"
 
     if not qrels_path.exists():
-        logger.error("Falta el archivo 'data/qrels.json'. Necesitas los juicios de relevancia humanos para evaluar.")
+        logger.error(f"Falta el archivo qrels.json en la ruta: {qrels_path}")
         sys.exit(1)
 
     queries = {}
@@ -78,7 +92,7 @@ def main():
                     "type": row.get('type', 'Unknown')
                 }
     else:
-        logger.warning("data/queries.csv no encontrado. Usando las consultas piloto del artículo.")
+        logger.warning("data/queries.csv no encontrado en la raíz. Usando fallback piloto.")
         queries = {
             "q01": {"text": "etiqueta de Jerez", "type": "Textual"},
             "q02": {"text": "animales", "type": "Iconographic"},
@@ -93,6 +107,16 @@ def main():
     
     results_by_type = {}
     
+    # Auto-detectar dinámicamente si vuestro lote de evaluación empieza en el ID 51 o en el ID 1
+    # basándonos en una inspección rápida de los primeros registros de texto de la base de datos.
+    sample_points, _ = rs.client.scroll(collection_name=rs.text_collection, limit=10)
+    detected_base = 51
+    if sample_points:
+        min_id = min(int(p.payload["img_id"]) for p in sample_points)
+        if min_id < 51:
+            detected_base = 1
+    logger.info(f"Base de traducción mapeada automáticamente partiendo del ID interno: {detected_base}")
+
     for q_id, q_info in queries.items():
         q_text = q_info["text"]
         q_type = q_info["type"]
@@ -101,9 +125,24 @@ def main():
             continue
             
         hits = rs.search_by_text(q_text)
-        ranked_ids = [int(hit["id"]) for hit in hits[:10]] 
-        current_qrels = {int(k): int(v) for k, v in qrels[q_id].items()}
         
+        # Mapear los IDs de los aciertos traduciéndolos al dataset de evaluación (101-510)
+        ranked_ids = []
+        for hit in hits:
+            eval_id = translate_internal_id(int(hit["id"]), base_id=detected_base)
+            if eval_id is not None and eval_id not in ranked_ids:
+                ranked_ids.append(eval_id)
+            if len(ranked_ids) >= 10:
+                break
+        
+        # Adaptación de escala binaria o graduada de qrels.json al formato estricto de eval.metrics
+        has_graded_scale = any(int(v) >= 2 for v in qrels[q_id].values())
+        if has_graded_scale:
+            current_qrels = {int(k): 1 for k, v in qrels[q_id].items() if int(v) >= 2}
+        else:
+            current_qrels = {int(k): 1 for k, v in qrels[q_id].items() if int(v) == 1}
+        
+        # Cómputo de métricas individuales
         p5 = precision_at_k(ranked_ids, current_qrels, 5)
         p10 = precision_at_k(ranked_ids, current_qrels, 10)
         ap = average_precision(ranked_ids, current_qrels)
@@ -125,11 +164,13 @@ def main():
     print("\n📊 TABLA DE RENDIMIENTO DEL NUEVO SISTEMA HÍBRIDO:")
     print('-' * 75)
     print(f"{'Configuración / Tipo Query':<30} | {'nDCG@10':<8} | {'MAP':<6} | {'P@5':<5} | {'MRR':<5}")
-    print('-' *75)
+    print('-' * 75)
 
     global_metrics = {"ndcg10": [], "map": [], "p5": [], "p10": [], "mrr": []}
 
     for q_type, metrics_list in results_by_type.items():
+        if not metrics_list:
+            continue
         avg_ndcg = sum(m["ndcg10"] for m in metrics_list) / len(metrics_list)
         avg_map = sum(m["map"] for m in metrics_list) / len(metrics_list)
         avg_p5 = sum(m["p5"] for m in metrics_list) / len(metrics_list)
@@ -143,19 +184,23 @@ def main():
         global_metrics["mrr"].append(avg_mrr)
 
     print('-' * 75)
-    agg_ndcg = sum(global_metrics["ndcg10"]) / len(global_metrics["ndcg10"])
-    agg_map = sum(global_metrics["map"]) / len(global_metrics["map"])
-    agg_p5 = sum(global_metrics["p5"]) / len(global_metrics["p5"])
-    agg_mrr = sum(global_metrics["mrr"]) / len(global_metrics["mrr"])
-    
+    if global_metrics["ndcg10"]:
+        agg_ndcg = sum(global_metrics["ndcg10"]) / len(global_metrics["ndcg10"])
+        agg_map = sum(global_metrics["map"]) / len(global_metrics["map"])
+        agg_p5 = sum(global_metrics["p5"]) / len(global_metrics["p5"])
+        agg_mrr = sum(global_metrics["mrr"]) / len(global_metrics["mrr"])
+    else:
+        agg_ndcg = agg_map = agg_p5 = agg_mrr = 0.0
+        
     print(f"✨ AGREGADO HÍBRIDO (MÉTRICA NUEVA) | {agg_ndcg:.3f}   | {agg_map:.3f} | {agg_p5:.3f} | {agg_mrr:.3f}")
     print('-' * 75)
     
     print("\n💡 Comparativa con las métricas del artículo científico anterior:")
-    print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495 ")
-    print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594 ")
-    print(f"\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
+    print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495")
+    print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
+    print("\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
     print('=' * 70 + "\n")
+
 
 if __name__ == "__main__":
     main()

@@ -135,7 +135,7 @@ class ImageRetrievalSystem:
             logger.info(f"Coleccion '{self.image_collection}' cargada")
 
         if self.text_collection not in existing:
-            # Modificado para soportar configuración densa Y dispersa simultáneamente
+            # Soportar configuración densa Y dispersa simultáneamente
             self.client.create_collection(
                 collection_name=self.text_collection,
                 vectors_config={
@@ -354,34 +354,61 @@ class ImageRetrievalSystem:
         return results
         
     def search_by_text(self, text_query, distance_threshold: float = 0.0) -> list:
-        """Búsqueda Híbrida Real: Combina semántica densa con pesos léxicos mediante RRF"""
-        logger.info("Searching by text (Hybrid Dense + Sparse via RRF)")
+        """Búsqueda Híbrida Robusta: Combina semántica densa y pesos léxicos vía RRF en el Cliente"""
+        logger.info("Searching by text (Hybrid Dense + Sparse via Client-side RRF)")
         dense_vec, sparse_vec = self._embed_text_hybrid(text_query)
         
-        # Ejecución de la query híbrida con sub-consultas prefetch combinadas por RRF
-        hits = self.client.query_points(
+        # 1. Consulta Densa Estándar
+        dense_hits = self.client.query_points(
             collection_name=self.text_collection,
-            prefetch=[
-                Prefetch(query=dense_vec, using="semantico", limit=100),
-                Prefetch(query=sparse_vec, using="lexico", limit=100)
-            ],
-            query=Fusion.RRF,
-            limit=10000
+            query=dense_vec,
+            using="semantico",
+            limit=1000
         ).points
 
-        seen = {}
-        for hit in hits:
+        # 2. Consulta Dispersa/Léxica Estándar
+        sparse_hits = self.client.query_points(
+            collection_name=self.text_collection,
+            query=sparse_vec,
+            using="lexico",
+            limit=1000
+        ).points
+
+        # 3. Algoritmo Reciprocal Rank Fusion (RRF)
+        rrf_scores = {}
+        constant_k = 60  # Constante estándar del algoritmo RRF
+        
+        # Procesar posiciones del ranking denso (1-indexed)
+        for rank, hit in enumerate(dense_hits, start=1):
             img_id = hit.payload["img_id"]
-            if img_id not in seen or hit.score > seen[img_id]["score"]:
-                seen[img_id] = {
+            if img_id not in rrf_scores:
+                rrf_scores[img_id] = {
                     "path":  hit.payload["path"],
                     "id":    str(img_id),
-                    "score": hit.score,
+                    "rrf_score": 0.0,
                     "text":  hit.payload["segment_text"]
                 }
+            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
 
-        items = list(seen.values())
-        logger.info(f"Found {len(items)} hybrid text matches")
+        # Procesar posiciones del ranking disperso/léxico
+        for rank, hit in enumerate(sparse_hits, start=1):
+            img_id = hit.payload["img_id"]
+            if img_id not in rrf_scores:
+                rrf_scores[img_id] = {
+                    "path":  hit.payload["path"],
+                    "id":    str(img_id),
+                    "rrf_score": 0.0,
+                    "text":  hit.payload["segment_text"]
+                }
+            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
+
+        # Mapear rrf_score al campo de retorno esperado 'score'
+        for img_id in rrf_scores:
+            rrf_scores[img_id]["score"] = rrf_scores[img_id]["rrf_score"]
+
+        # Ordenar los resultados combinados de mayor a menor puntuación RRF
+        items = sorted(rrf_scores.values(), key=lambda x: x["score"], reverse=True)
+        logger.info(f"Found {len(items)} hybrid text matches via client RRF")
         return items
 
     def search_by_tags(self, image_ids: list[int], text_query: str = None, score_threshold: float = 0.0) -> list[dict]:
@@ -411,36 +438,58 @@ class ImageRetrievalSystem:
                 for r in image_results
             ]
 
-        # También actualizamos la búsqueda filtrada por tags a modo Híbrido
+        # Actualización Híbrida con Filtro de Etiquetas y RRF Local
         dense_vec, sparse_vec = self._embed_text_hybrid(text_query)
         tag_filter = Filter(
             must=[FieldCondition(key="img_id", match=MatchAny(any=image_ids))]
         )
         
-        hits = self.client.query_points(
+        dense_hits = self.client.query_points(
             collection_name=self.text_collection,
-            prefetch=[
-                Prefetch(query=dense_vec, using="semantico", limit=100),
-                Prefetch(query=sparse_vec, using="lexico", limit=100)
-            ],
-            query=Fusion.RRF,
+            query=dense_vec,
+            using="semantico",
             query_filter=tag_filter,
-            limit=10000
+            limit=1000
         ).points
 
-        seen = {}
-        for hit in hits:
+        sparse_hits = self.client.query_points(
+            collection_name=self.text_collection,
+            query=sparse_vec,
+            using="lexico",
+            query_filter=tag_filter,
+            limit=1000
+        ).points
+
+        rrf_scores = {}
+        constant_k = 60
+        
+        for rank, hit in enumerate(dense_hits, start=1):
             img_id = hit.payload["img_id"]
-            if img_id not in seen or hit.score > seen[img_id]["score"]:
-                seen[img_id] = {
+            if img_id not in rrf_scores:
+                rrf_scores[img_id] = {
                     "path":  hit.payload["path"],
                     "id":    str(img_id),
-                    "score": hit.score,
+                    "rrf_score": 0.0,
                     "text":  hit.payload["segment_text"]
                 }
+            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
 
-        ranked = sorted(seen.values(), key=lambda x: x["score"], reverse=True)
-        logger.info(f"Found {len(ranked)} tag+hybrid matches")
+        for rank, hit in enumerate(sparse_hits, start=1):
+            img_id = hit.payload["img_id"]
+            if img_id not in rrf_scores:
+                rrf_scores[img_id] = {
+                    "path":  hit.payload["path"],
+                    "id":    str(img_id),
+                    "rrf_score": 0.0,
+                    "text":  hit.payload["segment_text"]
+                }
+            rrf_scores[img_id]["rrf_score"] += 1.0 / (constant_k + rank)
+
+        for img_id in rrf_scores:
+            rrf_scores[img_id]["score"] = rrf_scores[img_id]["rrf_score"]
+
+        ranked = sorted(rrf_scores.values(), key=lambda x: x["score"], reverse=True)
+        logger.info(f"Found {len(ranked)} tag+hybrid matches via client RRF")
         return ranked
 
     def get_all_tags(self) -> list[str]:
@@ -516,7 +565,6 @@ class ImageRetrievalSystem:
 
 
 if __name__ == "__main__":
-    import sys
     system = ImageRetrievalSystem(reset_index=False)
     print(f"Last image ID: {system.last_image_id}")
     print(f"Last text ID: {system.last_text_id}")
