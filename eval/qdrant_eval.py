@@ -180,7 +180,10 @@ def hybrid_branch_rankings(client, embedder: BGEEmbedder, system_name: str, quer
         limit,
     )
     dense = _require_complete(_branch_ranking(dense_hits), system_name + ":dense")
-    sparse = _require_complete(_branch_ranking(sparse_hits), system_name + ":sparse")
+    # Sparse retrieval only returns documents sharing lexical dimensions with
+    # the query. A partial (or empty) sparse branch is therefore valid; the
+    # complete dense branch still guarantees a full fused ranking.
+    sparse = _branch_ranking(sparse_hits)
     return {"dense": dense, "sparse": sparse}, {"dense_hits": dense_hits, "sparse_hits": sparse_hits}
 
 
@@ -204,4 +207,3 @@ def scroll_payloads(client, collection: str) -> list[dict]:
         if offset is None:
             break
     return payloads
-

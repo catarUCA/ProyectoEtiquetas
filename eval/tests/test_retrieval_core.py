@@ -32,6 +32,11 @@ class RetrievalCoreTests(unittest.TestCase):
         fused = reciprocal_rank_fusion({"dense": dense, "sparse": sparse}, final_results=2)
         self.assertEqual([item.eval_id for item in fused], ["1_01", "1_02"])
 
+    def test_rrf_accepts_empty_sparse_branch(self):
+        dense = [RankedLabel("1_01", 1, 1.0), RankedLabel("1_02", 2, 0.9)]
+        fused = reciprocal_rank_fusion({"dense": dense, "sparse": []}, final_results=2)
+        self.assertEqual([item.eval_id for item in fused], ["1_01", "1_02"])
+
     def test_rrf_rejects_duplicate_label_within_branch(self):
         duplicate = [RankedLabel("1_01", 1, 1.0), RankedLabel("1_01", 2, 0.9)]
         with self.assertRaises(ValueError):
@@ -48,4 +53,3 @@ class RetrievalCoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
