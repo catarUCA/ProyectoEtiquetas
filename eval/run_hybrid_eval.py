@@ -11,22 +11,24 @@ from pathlib import Path
 import logging
 
 # =====================================================================
-# ESCÁNER AUTOMÁTICO DE RUTAS (Busca retrieval_system.py donde sea que esté)
+# CONFIGURACIÓN DE RUTAS ABSOLUTAS (Inmune a Windows y tipos de datos)
 # =====================================================================
-_HERE = Path(__file__).resolve().parent + "/source/Sistema-de-catalogacion-de-imagenes"
-_ROOT = _HERE.parent if _HERE.name == "eval" else _HERE
+_HERE = Path(__file__).resolve().parent     # C:\Users\User\Documents\ProyectoEtiquetas\eval
+_ROOT = _HERE.parent                        # C:\Users\User\Documents\ProyectoEtiquetas
 
-# Escaneamos recursivamente para encontrar la carpeta exacta de retrieval_system.py
-target_dir = None
-for p in _ROOT.rglob("retrieval_system.py"):
-    target_dir = p.parent
-    break
+# Usamos el operador '/' para concatenar carpetas de forma nativa
+_TARGET_DIR = _ROOT / "source" / "Sistema-de-catalogacion-de-imagenes"
 
-if target_dir:
-    if str(target_dir) not in sys.path:
-        sys.path.insert(0, str(target_dir))
+# Inyectamos la ruta en el motor de búsqueda de Python convirtiéndola a texto plano
+if _TARGET_DIR.exists():
+    if str(_TARGET_DIR) not in sys.path:
+        sys.path.insert(0, str(_TARGET_DIR))
+else:
+    print(f"⚠️ ¡Ojo! No se encontró la carpeta en: {_TARGET_DIR}")
+
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+# =====================================================================
 # =====================================================================
 
 logging.basicConfig(level=logging.INFO)
