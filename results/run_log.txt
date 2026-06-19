@@ -14,3 +14,5 @@
 2026-06-19T11:34:59.432485+00:00 run_retrieval started
 2026-06-19T11:35:13.976199+00:00 run_retrieval FAILED: RuntimeError: ocr_vlm_hybrid_segmented:dense returned 4 unique labels; expected 50
 2026-06-19T11:35:45.896080+00:00 build_eval_indices reset=True batch_size=16
+2026-06-19T11:41:08.739507+00:00 build_eval_indices reset=True batch_size=16
+2026-06-19T11:47:31.815156+00:00 build_eval_indices completed

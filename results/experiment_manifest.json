@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-06-19T11:47:31.667142+00:00",
+  "python": {
+    "version": "3.12.10",
+    "executable": "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+  },
+  "packages": {
+    "FlagEmbedding": "1.4.0",
+    "qdrant-client": "1.18.0",
+    "numpy": "2.4.6",
+    "torch": "2.12.1"
+  },
+  "model": {
+    "name": "BAAI/bge-m3",
+    "requested_revision": null,
+    "resolved_revision": "5617a9f61b028005a4858fdac845db406aefb181",
+    "use_fp16": false,
+    "device": "cpu",
+    "batch_size": 8
+  },
+  "qdrant": {
+    "server_version": "1.17.1",
+    "mode": "remote",
+    "url": "http://localhost:6333",
+    "local_path": "results\\qdrant_eval_storage"
+  },
+  "system": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "cpu": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "gpu": {
+      "available": false,
+      "devices": [],
+      "torch_version": "2.12.1+cpu"
+    }
+  },
+  "git_commit": "e8d685ea4ea8a123fbfa1325d416c495cfdabef7",
+  "git_dirty": true,
+  "index_build": [
+    {
+      "system": "solo_ocr",
+      "collection": "wineeyes_eval_solo_ocr_dense",
+      "status": "built",
+      "points": 50,
+      "eval_ids": 50
+    },
+    {
+      "system": "solo_vlm",
+      "collection": "wineeyes_eval_solo_vlm_dense",
+      "status": "built",
+      "points": 50,
+      "eval_ids": 50
+    },
+    {
+      "system": "ocr_vlm",
+      "collection": "wineeyes_eval_ocr_vlm_dense",
+      "status": "built",
+      "points": 50,
+      "eval_ids": 50
+    },
+    {
+      "system": "ocr_vlm_hybrid_full",
+      "collection": "wineeyes_eval_ocr_vlm_hybrid_full",
+      "status": "built",
+      "points": 50,
+      "eval_ids": 50
+    },
+    {
+      "system": "ocr_vlm_hybrid_segmented",
+      "collection": "wineeyes_eval_ocr_vlm_hybrid_segmented",
+      "status": "built",
+      "points": 2704,
+      "eval_ids": 50
+    }
+  ]
+}
