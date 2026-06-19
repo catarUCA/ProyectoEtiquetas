@@ -10,20 +10,32 @@ import json
 from pathlib import Path
 import logging
 
-# Ajustar paths para ejecución modular
+# =====================================================================
+# ESCÁNER AUTOMÁTICO DE RUTAS (Busca retrieval_system.py donde sea que esté)
+# =====================================================================
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent if _HERE.name == "eval" else _HERE
+
+# Escaneamos recursivamente para encontrar la carpeta exacta de retrieval_system.py
+target_dir = None
+for p in _ROOT.rglob("retrieval_system.py"):
+    target_dir = p.parent
+    break
+
+if target_dir:
+    if str(target_dir) not in sys.path:
+        sys.path.insert(0, str(target_dir))
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
-os.chdir(_ROOT)
+# =====================================================================
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("HybridEval")
 
 def print_header(title):
-    print('=' *70)
+    print(f"\n{'='*70}")
     print(f"  🚀 {title}")
-    print('='*70)
+    print('=' * 70)
 
 def main():
     print_header("EVALUACIÓN DEL NUEVO SISTEMA HÍBRIDO (BGE-M3 + QDRANT RRF)")
@@ -45,7 +57,7 @@ def main():
         logger.error(f"No se pudo conectar a Qdrant o inicializar BGE-M3: {e}")
         sys.exit(1)
 
-    # 3. Cargar consultas (queries.csv o JSON equivalente)
+    # 3. Cargar consultas y juicios de relevancia
     queries_path = Path("data/queries.csv")
     qrels_path = Path("data/qrels.json")
 
@@ -53,8 +65,6 @@ def main():
         logger.error("Falta el archivo 'data/qrels.json'. Necesitas los juicios de relevancia humanos para evaluar.")
         sys.exit(1)
 
-    # Cargar consultas mapeadas
-    # Si usas un formato csv plano (id,query,type), lo parseamos limpiamente:
     queries = {}
     if queries_path.exists():
         import csv
@@ -66,7 +76,6 @@ def main():
                     "type": row.get('type', 'Unknown')
                 }
     else:
-        # Fallback de emergencia con el piloto del paper si no encuentra el archivo
         logger.warning("data/queries.csv no encontrado. Usando las consultas piloto del artículo.")
         queries = {
             "q01": {"text": "etiqueta de Jerez", "type": "Textual"},
@@ -80,7 +89,6 @@ def main():
     # 4. Ejecutar Búsqueda Híbrida y recopilar Rankings
     print("\n🔍 Ejecutando consultas en el motor híbrido local...")
     
-    # Estructura para almacenar resultados por tipo de query
     results_by_type = {}
     
     for q_id, q_info in queries.items():
@@ -90,17 +98,10 @@ def main():
         if q_id not in qrels:
             continue
             
-        # Ejecutar la nueva búsqueda híbrida que devuelve diccionarios
         hits = rs.search_by_text(q_text)
-        
-        # Extraer los IDs de las imágenes posicionadas en el ranking (convertidos a int)
-        ranked_ids = [int(hit["id"]) for hit in hits[:10]] # Top 10 para evaluar nDCG@10
-        
-        # Obtener los juicios de relevancia correspondientes a esta query (id_img -> grado_relevancia)
-        # Convertimos las llaves del qrels de esa query a enteros para que hagan match con ranked_ids
+        ranked_ids = [int(hit["id"]) for hit in hits[:10]] 
         current_qrels = {int(k): int(v) for k, v in qrels[q_id].items()}
         
-        # Calcular métricas individuales empleando el script nativo de la fase 0
         p5 = precision_at_k(ranked_ids, current_qrels, 5)
         p10 = precision_at_k(ranked_ids, current_qrels, 10)
         ap = average_precision(ranked_ids, current_qrels)
@@ -120,9 +121,9 @@ def main():
 
     # 5. Calcular promedios (Macro-Averages) y pintar la tabla comparativa
     print("\n📊 TABLA DE RENDIMIENTO DEL NUEVO SISTEMA HÍBRIDO:")
-    print('-' *75)
+    print('-' * 75)
     print(f"{'Configuración / Tipo Query':<30} | {'nDCG@10':<8} | {'MAP':<6} | {'P@5':<5} | {'MRR':<5}")
-    print('-'*75)
+    print('-' *75)
 
     global_metrics = {"ndcg10": [], "map": [], "p5": [], "p10": [], "mrr": []}
 
@@ -146,13 +147,13 @@ def main():
     agg_mrr = sum(global_metrics["mrr"]) / len(global_metrics["mrr"])
     
     print(f"✨ AGREGADO HÍBRIDO (MÉTRICA NUEVA) | {agg_ndcg:.3f}   | {agg_map:.3f} | {agg_p5:.3f} | {agg_mrr:.3f}")
-    print( '-' * 75)
+    print('-' * 75)
     
     print("\n💡 Comparativa con las métricas del artículo científico anterior:")
-    print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495")
-    print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
+    print(f"  - viejo 'ocr_vlm' (Densa):     nDCG@10 = 0.668  |  MAP = 0.495 ")
+    print(f"  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594 ")
     print(f"\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
-    print('=' * 70)
+    print('=' * 70 + "\n")
 
 if __name__ == "__main__":
     main()
