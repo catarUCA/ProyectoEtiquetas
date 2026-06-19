@@ -14,7 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY source/Sistema-de-catalogacion-de-imagenes /app/src
+COPY src/Sistema-de-catalogacion-de-imagenes /app/src
 
 WORKDIR /app/src
 

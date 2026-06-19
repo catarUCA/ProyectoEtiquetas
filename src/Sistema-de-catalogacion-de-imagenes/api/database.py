@@ -3,10 +3,10 @@ import pymysql
 from passlib.context import CryptContext
 from dbutils.pooled_db import PooledDB
 
-MYSQL_HOST = os.getenv("MYSQL_HOST", "sibila.uca.es")
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
 MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
-MYSQL_USER = os.getenv("MYSQL_USER", "admin")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "admin")
+MYSQL_USER = os.getenv("MYSQL_USER", "wineeyes")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "oderismo")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

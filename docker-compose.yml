@@ -19,13 +19,12 @@ services:
     env_file:
       - .env
     volumes:
-      - ./source/Sistema-de-catalogacion-de-imagenes:/app/src
-      - C:/Users/User/Documents/ProyectoEtiquetas/procesadas:/app/images/processed
-      - C:/Users/User/Documents/ProyectoEtiquetas/miniaturas:/app/images/thumbnails
-      - C:/Users/User/Documents/ProyectoEtiquetas/debug:/app/debug
+      - ./src/Sistema-de-catalogacion-de-imagenes:/app/src
+      - ${IMAGE_DEST_HOST:-./runtime/processed}:/app/images/processed
+      - ${THUMB_DEST_HOST:-./runtime/thumbnails}:/app/images/thumbnails
+      - ${DEBUG_DIR_HOST:-./runtime/debug}:/app/debug
     networks:
       - red-proyecto
-      - proyectocontabilidad_contabilidad-network
     restart: unless-stopped
 
   rembg-service:
@@ -86,8 +85,6 @@ services:
 networks:
   red-proyecto:
     driver: bridge
-  proyectocontabilidad_contabilidad-network:
-    external: true
 
 volumes:
   hf_cache:

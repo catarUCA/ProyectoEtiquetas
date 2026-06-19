@@ -6,12 +6,15 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from api.database import get_db
 import hashlib
+import os
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = "tu-clave-secreta-super-segura-cambiala"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set in the environment")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 

@@ -1,10 +1,12 @@
 .env
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
 /debug
 /miniaturas
 /procesadas
-/eval/__pycache__
-source/Sistema-de-catalogacion-de-imagenes/__pycache__
-source/Sistema-de-catalogacion-de-imagenes/api/__pycache__
+runtime/
 manuales/
 etiquetasSoftwareOverleaf/
 .opencode/

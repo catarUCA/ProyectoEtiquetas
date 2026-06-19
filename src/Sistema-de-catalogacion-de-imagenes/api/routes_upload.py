@@ -536,8 +536,6 @@ async def index_batch(request: Request, body: IndexRequest):
 
         for filename, data in accepted.items():
             _current_image["processed"] = processed
-
-        for filename, data in accepted.items():
             if "image_bytes" not in data:
                 errors.append(filename)
                 logger.error(f"Saltando {filename}: sin image_bytes (crop falló)")
@@ -566,19 +564,6 @@ async def index_batch(request: Request, body: IndexRequest):
                         png_bytes, ocr_text
                     )
 
-               ''' clip_vector = await loop.run_in_executor(
-                    PROCESSING_EXECUTOR,
-                    retrieval_system._embed_image,
-                    base64.b64encode(png_bytes).decode()
-                )
-
-                bge_vector = await loop.run_in_executor(
-                    PROCESSING_EXECUTOR,
-                    retrieval_system._embed_text,
-                    description
-                )'''
-
-                #  CONSERVA SOLO ESTO:
                 clip_vector = await loop.run_in_executor(
                     PROCESSING_EXECUTOR,
                     retrieval_system._embed_image,

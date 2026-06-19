@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 IMAGE_DEST = os.getenv("IMAGE_DEST", "/app/images/processed")
 THUMB_DEST = os.getenv("THUMB_DEST", "/app/images/thumbnails")
 
-SECRET_KEY = "tu-clave-secreta-super-segura-cambiala"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set in the environment")
 ALGORITHM = "HS256"
 
 app = FastAPI(

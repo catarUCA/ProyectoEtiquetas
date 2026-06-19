@@ -16,7 +16,7 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent if _HERE.name == "eval" else _HERE
 
 # Buscamos la carpeta 'source' (o 'src') y la metemos en el motor de búsqueda de Python
-_SOURCE_DIR = _ROOT / "source/Sistema-de-catalogacion-de-imagenes"  # Ajusta según tu estructura
+_SOURCE_DIR = _ROOT / "src/Sistema-de-catalogacion-de-imagenes"
 if not _SOURCE_DIR.exists():
     _SOURCE_DIR = _ROOT / "src"  # Por si acaso
 
