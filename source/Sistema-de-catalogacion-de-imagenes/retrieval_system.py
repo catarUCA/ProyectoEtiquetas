@@ -3,8 +3,9 @@ os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    VectorParams, Distance, PointStruct, PointIdsList,
-    OrderBy, Direction, Filter, FieldCondition, MatchAny, MatchValue, FilterSelector
+    VectorParams, SparseVectorParams, SparseVector, Prefetch, Fusion, Distance, 
+    PointStruct, PointIdsList, OrderBy, Direction, Filter, FieldCondition, 
+    MatchAny, MatchValue, FilterSelector
 )
 import numpy as np
 from PIL import Image
@@ -24,11 +25,14 @@ logger = logging.getLogger(__name__)
 CLIP_DIM = 768
 TEXT_DIM = 1024
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-TEXT_EMBED_MODEL = os.getenv("TEXT_EMBED_MODEL", "bge-m3:latest")
 
 _clip_model = None
 _clip_preprocess = None
 _clip_lock = threading.Lock()
+
+# Inicialización diferida para BGE-M3 nativo (necesario para Sparse Vectors)
+_bge_model = None
+_bge_lock = threading.Lock()
 
 
 def _get_clip():
@@ -47,6 +51,19 @@ def _get_clip():
     return _clip_model, _clip_preprocess
 
 
+def _get_bge():
+    global _bge_model
+    if _bge_model is None:
+        with _bge_lock:
+            if _bge_model is None:
+                from FlagEmbedding import BGEM3FlagModel
+                logger.info("Loading BGE-M3 locally via FlagEmbedding (CPU)...")
+                # use_fp16=False ideal para CPU/commodity hardware
+                _bge_model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=False)
+                logger.info("BGE-M3 loaded successfully")
+    return _bge_model
+
+
 class ImageRetrievalSystem:
     def __init__(self, reset_index: bool = False):
         self.image_collection = "imagenes"
@@ -58,7 +75,7 @@ class ImageRetrievalSystem:
         qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
         self.client = QdrantClient(host=qdrant_host, port=qdrant_port)
         
-        logger.info(f"Initializing retrieval system (CLIP dim={CLIP_DIM}, TEXT dim={TEXT_DIM})")
+        logger.info(f"Initializing hybrid retrieval system (CLIP dim={CLIP_DIM}, TEXT dim={TEXT_DIM})")
 
         if reset_index:
             self.client.delete_collection(self.image_collection)
@@ -79,15 +96,25 @@ class ImageRetrievalSystem:
             feats = feats / feats.norm(dim=-1, keepdim=True)
             return feats.squeeze(0).tolist()
 
-    def _embed_text(self, text: str) -> list:
-        r = requests.post(f"{OLLAMA_HOST}/api/embed",
-                          json={"model": TEXT_EMBED_MODEL, "input": text}, timeout=60)
-        r.raise_for_status()
-        emb = r.json()["embeddings"][0]
-        norm = np.linalg.norm(emb)
+    def _embed_text_hybrid(self, text: str) -> Tuple[list, SparseVector]:
+        """Genera simultáneamente embeddings densos y dispersos usando BGE-M3"""
+        model = _get_bge()
+        output = model.encode(text, return_dense=True, return_sparse=True)
+        
+        # 1. Procesamiento del Vector Denso
+        dense_emb = output['dense_vecs'].tolist()
+        norm = np.linalg.norm(dense_emb)
         if norm > 0:
-            emb = (np.array(emb) / norm).tolist()
-        return emb
+            dense_emb = (np.array(dense_emb) / norm).tolist()
+            
+        # 2. Procesamiento del Vector Disperso (Lexical Weights)
+        lexical_scores = output['lexical_weights']
+        # Mapeo al formato nativo que espera Qdrant (indices enteros y valores flotantes)
+        indices = [int(k) for k in lexical_scores.keys()]
+        values = [float(v) for v in lexical_scores.values()]
+        sparse_vector = SparseVector(indices=indices, values=values)
+        
+        return dense_emb, sparse_vector
 
     def ensure_collection(self):
         existing = [c.name for c in self.client.get_collections().collections]
@@ -108,10 +135,14 @@ class ImageRetrievalSystem:
             logger.info(f"Coleccion '{self.image_collection}' cargada")
 
         if self.text_collection not in existing:
+            # Modificado para soportar configuración densa Y dispersa simultáneamente
             self.client.create_collection(
                 collection_name=self.text_collection,
                 vectors_config={
                     "semantico": VectorParams(size=TEXT_DIM, distance=Distance.COSINE),
+                },
+                sparse_vectors_config={
+                    "lexico": SparseVectorParams()
                 }
             )
             self.client.create_payload_index(
@@ -119,7 +150,7 @@ class ImageRetrievalSystem:
                 field_name="segment_id",
                 field_schema="integer"
             )
-            logger.info(f"Coleccion '{self.text_collection}' creada")
+            logger.info(f"Coleccion híbrida '{self.text_collection}' creada")
         else:
             logger.info(f"Coleccion '{self.text_collection}' cargada")
 
@@ -185,14 +216,18 @@ class ImageRetrievalSystem:
         segments = self.split_description(description)
         all_texts = [" ".join(segments)] + segments
 
-        text_features = [self._embed_text(t) for t in all_texts]
-
         text_points = []
         for i, text in enumerate(all_texts):
             self.last_text_id += 1
+            # Extraemos ambos vectores usando el nuevo pipeline
+            dense_vec, sparse_vec = self._embed_text_hybrid(text)
+            
             point = PointStruct(
                 id=self.last_text_id,
-                vector={"semantico": text_features[i]},
+                vector={
+                    "semantico": dense_vec,
+                    "lexico": sparse_vec
+                },
                 payload={
                     "img_id":        self.last_image_id,
                     "segment_id":    self.last_text_id,
@@ -208,7 +243,7 @@ class ImageRetrievalSystem:
                 points=text_points
             )
 
-        logger.info(f"Imagen indexada con ID {self.last_image_id}, {len(text_points)} segmentos indexados\n")
+        logger.info(f"Imagen indexada con ID {self.last_image_id}, {len(text_points)} segmentos híbridos indexados\n")
 
     def update_description(self, img_id: int, new_description: str):
         result = self.client.retrieve(
@@ -238,14 +273,16 @@ class ImageRetrievalSystem:
         segments = self.split_description(new_description)
         all_texts = [" ".join(segments)] + segments
 
-        text_features = [self._embed_text(t) for t in all_texts]
-
         text_points = []
         for i, text in enumerate(all_texts):
             self.last_text_id += 1
+            dense_vec, sparse_vec = self._embed_text_hybrid(text)
             point = PointStruct(
                 id=self.last_text_id,
-                vector={"semantico": text_features[i]},
+                vector={
+                    "semantico": dense_vec,
+                    "lexico": sparse_vec
+                },
                 payload={
                     "img_id":        img_id,
                     "segment_id":    self.last_text_id,
@@ -259,9 +296,7 @@ class ImageRetrievalSystem:
                 collection_name=self.text_collection,
                 points=text_points
             )
-        logger.info(f"Descripcion actualizada para imagen {img_id}\n")
-
-        logger.info(f"Descripción actualizada para img_id={img_id}, {len(text_points)} segmentos regenerados")
+        logger.info(f"Descripción actualizada para img_id={img_id}, {len(text_points)} segmentos regenerados de forma híbrida")
 
     def delete_images(self, remove_set: list[int]):
         points = self.client.retrieve(
@@ -319,14 +354,19 @@ class ImageRetrievalSystem:
         return results
         
     def search_by_text(self, text_query, distance_threshold: float = 0.0) -> list:
-        logger.info("Searching by text (dense semantic)")
-        dense_vec = self._embed_text(text_query)
+        """Búsqueda Híbrida Real: Combina semántica densa con pesos léxicos mediante RRF"""
+        logger.info("Searching by text (Hybrid Dense + Sparse via RRF)")
+        dense_vec, sparse_vec = self._embed_text_hybrid(text_query)
+        
+        # Ejecución de la query híbrida con sub-consultas prefetch combinadas por RRF
         hits = self.client.query_points(
             collection_name=self.text_collection,
-            query=dense_vec,
-            using="semantico",
-            limit=10000,
-            score_threshold=distance_threshold
+            prefetch=[
+                Prefetch(query=dense_vec, using="semantico", limit=100),
+                Prefetch(query=sparse_vec, using="lexico", limit=100)
+            ],
+            query=Fusion.RRF,
+            limit=10000
         ).points
 
         seen = {}
@@ -341,7 +381,7 @@ class ImageRetrievalSystem:
                 }
 
         items = list(seen.values())
-        logger.info(f"Found {len(items)} semantic matches")
+        logger.info(f"Found {len(items)} hybrid text matches")
         return items
 
     def search_by_tags(self, image_ids: list[int], text_query: str = None, score_threshold: float = 0.0) -> list[dict]:
@@ -371,17 +411,21 @@ class ImageRetrievalSystem:
                 for r in image_results
             ]
 
-        dense_vec = self._embed_text(text_query)
+        # También actualizamos la búsqueda filtrada por tags a modo Híbrido
+        dense_vec, sparse_vec = self._embed_text_hybrid(text_query)
         tag_filter = Filter(
             must=[FieldCondition(key="img_id", match=MatchAny(any=image_ids))]
         )
+        
         hits = self.client.query_points(
             collection_name=self.text_collection,
-            query=dense_vec,
-            using="semantico",
+            prefetch=[
+                Prefetch(query=dense_vec, using="semantico", limit=100),
+                Prefetch(query=sparse_vec, using="lexico", limit=100)
+            ],
+            query=Fusion.RRF,
             query_filter=tag_filter,
-            limit=10000,
-            score_threshold=score_threshold
+            limit=10000
         ).points
 
         seen = {}

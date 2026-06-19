@@ -566,7 +566,7 @@ async def index_batch(request: Request, body: IndexRequest):
                         png_bytes, ocr_text
                     )
 
-                clip_vector = await loop.run_in_executor(
+               ''' clip_vector = await loop.run_in_executor(
                     PROCESSING_EXECUTOR,
                     retrieval_system._embed_image,
                     base64.b64encode(png_bytes).decode()
@@ -576,6 +576,13 @@ async def index_batch(request: Request, body: IndexRequest):
                     PROCESSING_EXECUTOR,
                     retrieval_system._embed_text,
                     description
+                )'''
+
+                #  CONSERVA SOLO ESTO:
+                clip_vector = await loop.run_in_executor(
+                    PROCESSING_EXECUTOR,
+                    retrieval_system._embed_image,
+                    base64.b64encode(png_bytes).decode()
                 )
 
                 if not body.force and retrieval_system.last_image_id > 0:
