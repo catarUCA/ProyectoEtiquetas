@@ -13,7 +13,7 @@ import logging
 # =====================================================================
 # ESCÁNER AUTOMÁTICO DE RUTAS (Busca retrieval_system.py donde sea que esté)
 # =====================================================================
-_HERE = Path(__file__).resolve().parent
+_HERE = Path(__file__).resolve().parent + "/source/Sistema-de-catalogacion-de-imagenes"
 _ROOT = _HERE.parent if _HERE.name == "eval" else _HERE
 
 # Escaneamos recursivamente para encontrar la carpeta exacta de retrieval_system.py
