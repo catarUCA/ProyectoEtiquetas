@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-06-19T11:24:35.490210+00:00",
+  "strict": false,
+  "status": "pass",
+  "checks": [
+    {
+      "name": "query_count",
+      "status": "pass",
+      "critical": true,
+      "detail": "found=15 expected=15"
+    },
+    {
+      "name": "ocr_count",
+      "status": "pass",
+      "critical": true,
+      "detail": "found=50 expected=50"
+    },
+    {
+      "name": "ocr_canonical_ids",
+      "status": "pass",
+      "critical": true,
+      "detail": "missing=[] unknown=[]"
+    },
+    {
+      "name": "ocr_nonempty",
+      "status": "pass",
+      "critical": true,
+      "detail": "empty=[]"
+    },
+    {
+      "name": "vlm_solo_count",
+      "status": "pass",
+      "critical": true,
+      "detail": "found=50 expected=50"
+    },
+    {
+      "name": "vlm_solo_canonical_ids",
+      "status": "pass",
+      "critical": true,
+      "detail": "missing=[] unknown=[]"
+    },
+    {
+      "name": "vlm_solo_nonempty",
+      "status": "pass",
+      "critical": true,
+      "detail": "empty=[]"
+    },
+    {
+      "name": "vlm_fusion_count",
+      "status": "pass",
+      "critical": true,
+      "detail": "found=50 expected=50"
+    },
+    {
+      "name": "vlm_fusion_canonical_ids",
+      "status": "pass",
+      "critical": true,
+      "detail": "missing=[] unknown=[]"
+    },
+    {
+      "name": "vlm_fusion_nonempty",
+      "status": "pass",
+      "critical": true,
+      "detail": "empty=[]"
+    },
+    {
+      "name": "representation_id_sets_identical",
+      "status": "pass",
+      "critical": true,
+      "detail": "ocr/vlm_solo/vlm_fusion"
+    },
+    {
+      "name": "image_count",
+      "status": "pass",
+      "critical": true,
+      "detail": "found=50 missing=[]"
+    },
+    {
+      "name": "qrels_query_coverage",
+      "status": "pass",
+      "critical": true,
+      "detail": "missing=[] extra=[]"
+    },
+    {
+      "name": "qrels_ids_known",
+      "status": "pass",
+      "critical": true,
+      "detail": "unknown=[]"
+    },
+    {
+      "name": "queries_have_qrels",
+      "status": "pass",
+      "critical": true,
+      "detail": "missing=[]"
+    },
+    {
+      "name": "qrels_format",
+      "status": "pass",
+      "critical": true,
+      "detail": "binary=True path=data/qrels.json"
+    },
+    {
+      "name": "qdrant_available",
+      "status": "skip",
+      "critical": false,
+      "detail": "preflight only: qdrant-client is required for index and retrieval commands"
+    },
+    {
+      "name": "rankings_full_exists",
+      "status": "skip",
+      "critical": false,
+      "detail": "not generated yet"
+    }
+  ]
+}

@@ -1,38 +1,19 @@
-#!/usr/bin/env python3
-"""
-eval/run_hybrid_eval.py -- Orquestador enfocado exclusivamente en validar el rendimiento híbrido.
-Sustituye la evaluación densa clásica por el motor híbrido (Dense + Sparse via RRF).
-"""
+"""Deprecated compatibility entry point for the corrected evaluation flow."""
 
-import os
+from __future__ import annotations
+
 import sys
-import json
-from pathlib import Path
-import logging
-
-# =====================================================================
-# CONFIGURACIÓN DE RUTAS ABSOLUTAS (Inmune a Windows y tipos de datos)
-# =====================================================================
-_HERE = Path(__file__).resolve().parent     # C:\Users\User\Documents\ProyectoEtiquetas\eval
-_ROOT = _HERE.parent                        # C:\Users\User\Documents\ProyectoEtiquetas
-
-# Ruta exacta hacia el archivo de recuperacion
-_TARGET_DIR = _ROOT / "source" / "Sistema-de-catalogacion-de-imagenes"
-
-if _TARGET_DIR.exists():
-    if str(_TARGET_DIR) not in sys.path:
-        sys.path.insert(0, str(_TARGET_DIR))
-else:
-    print(f"⚠️ ¡Ojo! No se encontró la carpeta en: {_TARGET_DIR}")
-
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-# =====================================================================
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("HybridEval")
 
 
+<<<<<<< HEAD
+def main() -> int:
+    print(
+        "eval.run_hybrid_eval was retired because it translated positional IDs. "
+        "Use: python -m eval.build_eval_indices --reset && python -m eval.run_retrieval",
+        file=sys.stderr,
+    )
+    return 2
+=======
 def print_header(title):
     print(f"\n{'='*70}")
     print(f"  🚀 {title}")
@@ -202,7 +183,8 @@ def main():
     print("  - viejo 'bm25_fusion' (Léxica): nDCG@10 = 0.708  |  MAP = 0.594")
     print("\nVerifica si tu 'AGREGADO HÍBRIDO' supera el 0.708 de nDCG. ¡Esa será tu victoria!")
     print('=' * 70 + "\n")
+>>>>>>> 4afcc0f744d72bdccbe9f8fcb4eaf9c66623bdd1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

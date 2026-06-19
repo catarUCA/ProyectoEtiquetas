@@ -1,0 +1,10 @@
+2026-06-19T11:21:00.999470+00:00 audit_inputs strict=False
+2026-06-19T11:21:01.004600+00:00 audit_inputs status=pass checks=18 failures=0
+2026-06-19T11:23:08.114637+00:00 audit_inputs strict=False
+2026-06-19T11:23:08.118562+00:00 audit_inputs status=pass checks=18 failures=0
+2026-06-19T11:23:49.237824+00:00 unittest discover: 17 tests passed; local pure-logic validation only
+2026-06-19T11:23:49.389754+00:00 build_eval_indices reset=True batch_size=16
+2026-06-19T11:23:49.390024+00:00 build_eval_indices FAILED: RuntimeError: qdrant-client is required for index and retrieval commands
+2026-06-19T11:24:35.379575+00:00 unittest discover: 18 tests passed; local pure-logic validation only
+2026-06-19T11:24:35.486381+00:00 audit_inputs strict=False
+2026-06-19T11:24:35.490699+00:00 audit_inputs status=pass checks=18 failures=0

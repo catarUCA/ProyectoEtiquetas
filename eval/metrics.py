@@ -1,59 +1,81 @@
+"""Information-retrieval metrics with explicit full-depth and @10 variants."""
+
+from __future__ import annotations
+
 import math
-import numpy as np
+from typing import Mapping, Sequence
 
 
-def _dcg(gains):
-    return sum(g / math.log2(i + 2) for i, g in enumerate(gains))
+def _dcg(gains: Sequence[int | float]) -> float:
+    return sum(float(gain) / math.log2(index + 2) for index, gain in enumerate(gains))
 
 
-def ndcg_at_k(ranked_ids, qrels, k):
-    gains = [(2 ** qrels.get(i, 0) - 1) for i in ranked_ids[:k]]
-    dcg = _dcg(gains)
-    ideal = sorted(qrels.values(), reverse=True)[:k]
-    idcg = _dcg([2 ** g - 1 for g in ideal])
-    return dcg / idcg if idcg > 0 else 0.0
+def ndcg_at_k(ranked_ids: Sequence[str], gains: Mapping[str, int], k: int = 10) -> float:
+    observed = [(2 ** int(gains.get(eval_id, 0)) - 1) for eval_id in ranked_ids[:k]]
+    ideal = sorted((int(value) for value in gains.values()), reverse=True)[:k]
+    ideal_dcg = _dcg([(2 ** value - 1) for value in ideal])
+    return _dcg(observed) / ideal_dcg if ideal_dcg else 0.0
 
 
-def average_precision(ranked_ids, qrels, k=None):
-    rel_total = sum(1 for g in qrels.values() if g > 0)
-    if rel_total == 0:
+def average_precision(
+    ranked_ids: Sequence[str], binary_qrels: Mapping[str, int], k: int | None = None
+) -> float:
+    relevant = {eval_id for eval_id, value in binary_qrels.items() if int(value) > 0}
+    if not relevant:
         return 0.0
-    ranked = ranked_ids[:k] if k else ranked_ids
-    hits, ap = 0, 0.0
-    for i, iid in enumerate(ranked):
-        if qrels.get(iid, 0) > 0:
+    ranking = ranked_ids[:k] if k is not None else ranked_ids
+    hits = 0
+    total = 0.0
+    for rank, eval_id in enumerate(ranking, 1):
+        if eval_id in relevant:
             hits += 1
-            ap += hits / (i + 1)
-    return ap / rel_total
+            total += hits / rank
+    return total / len(relevant)
 
 
-def precision_at_k(ranked_ids, qrels, k):
-    if k == 0:
+def precision_at_k(ranked_ids: Sequence[str], binary_qrels: Mapping[str, int], k: int) -> float:
+    if k <= 0:
+        raise ValueError("k must be positive")
+    relevant = {eval_id for eval_id, value in binary_qrels.items() if int(value) > 0}
+    return sum(eval_id in relevant for eval_id in ranked_ids[:k]) / k
+
+
+def recall_at_k(ranked_ids: Sequence[str], binary_qrels: Mapping[str, int], k: int) -> float:
+    relevant = {eval_id for eval_id, value in binary_qrels.items() if int(value) > 0}
+    if not relevant:
         return 0.0
-    return sum(1 for i in ranked_ids[:k] if qrels.get(i, 0) > 0) / k
+    return sum(eval_id in relevant for eval_id in ranked_ids[:k]) / len(relevant)
 
 
-def mrr(ranked_ids, qrels):
-    for i, iid in enumerate(ranked_ids):
-        if qrels.get(iid, 0) > 0:
-            return 1.0 / (i + 1)
+def reciprocal_rank(
+    ranked_ids: Sequence[str], binary_qrels: Mapping[str, int], k: int | None = None
+) -> float:
+    relevant = {eval_id for eval_id, value in binary_qrels.items() if int(value) > 0}
+    ranking = ranked_ids[:k] if k is not None else ranked_ids
+    for rank, eval_id in enumerate(ranking, 1):
+        if eval_id in relevant:
+            return 1.0 / rank
     return 0.0
 
 
-def paired_permutation_test(a, b, n=10000, seed=0):
-    rng = np.random.default_rng(seed)
-    diff = np.array(a, dtype=float) - np.array(b, dtype=float)
-    obs = diff.mean()
-    count = sum(
-        abs((diff * rng.choice([1, -1], size=len(diff))).mean()) >= abs(obs)
-        for _ in range(n)
-    )
-    return obs, (count + 1) / (n + 1)
+def metrics_for_ranking(
+    ranked_ids: Sequence[str],
+    gains: Mapping[str, int],
+    binary_qrels: Mapping[str, int],
+    complete: bool,
+) -> dict[str, float | None]:
+    return {
+        "ndcg_at_10": ndcg_at_k(ranked_ids, gains, 10),
+        "map": average_precision(ranked_ids, binary_qrels) if complete else None,
+        "map_at_10": average_precision(ranked_ids, binary_qrels, 10),
+        "p_at_5": precision_at_k(ranked_ids, binary_qrels, 5),
+        "p_at_10": precision_at_k(ranked_ids, binary_qrels, 10),
+        "recall_at_10": recall_at_k(ranked_ids, binary_qrels, 10),
+        "mrr": reciprocal_rank(ranked_ids, binary_qrels) if complete else None,
+        "mrr_at_10": reciprocal_rank(ranked_ids, binary_qrels, 10),
+    }
 
 
-def bootstrap_ci(values, n=10000, alpha=0.05, seed=0):
-    rng = np.random.default_rng(seed)
-    vals = np.array(values, dtype=float)
-    means = [rng.choice(vals, size=len(vals), replace=True).mean() for _ in range(n)]
-    lo, hi = np.percentile(means, [100 * alpha / 2, 100 * (1 - alpha / 2)])
-    return float(vals.mean()), float(lo), float(hi)
+# Backward-compatible name used by legacy scripts.
+def mrr(ranked_ids, qrels):
+    return reciprocal_rank(ranked_ids, qrels)
