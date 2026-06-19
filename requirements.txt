@@ -1,3 +1,6 @@
+# =====================================================================
+# Ecosistema Core API & Servidor
+# =====================================================================
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 python-multipart==0.0.12
@@ -5,16 +8,33 @@ pydantic[email]==2.9.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+
+# =====================================================================
+# Bases de Datos & Almacenamiento Vectorial
+# =====================================================================
 qdrant_client==1.17.1
-ollama==0.6.1
-Pillow==12.1.1
-opencv_python_headless==4.13.0.92
-numpy==2.4.3
-scikit-image==0.26.0
-protobuf==7.34.1
-requests
 pymysql
 DBUtils
+
+# =====================================================================
+# Motores de IA & Modelos de Embeddings (Locales y Ollama)
+# =====================================================================
+ollama==0.6.1
+FlagEmbedding>=1.3.0   # 🌟 NUEVO: Obligatorio para la búsqueda híbrida local (BGE-M3 Sparse)
+open_clip_torch
+requests
+
+# =====================================================================
+# Procesamiento de Imágenes y Preprocesado
+# =====================================================================
+Pillow==12.1.1
+opencv-python-headless==4.13.0.92
+scikit-image==0.26.0
+rembg>=2.0.60          # 🌟 NUEVO: Necesario para la Stage 1 de recorte/eliminación de fondo
+
+# =====================================================================
+# Frameworks de Deep Learning & Utilitarios
+# =====================================================================
 torch
 torchvision
-open_clip_torch
+protobuf==7.34.1
